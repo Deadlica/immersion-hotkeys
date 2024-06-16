@@ -1,0 +1,8 @@
+venv/
+.AJATT-Hotkeys/
+*.dat
+*.exe
+build/
+dist/
+__pycache__/
+/*/
