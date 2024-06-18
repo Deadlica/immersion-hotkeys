@@ -120,6 +120,7 @@ class App(customtkinter.CTk):
         self.__clear_frame()
         coords1, coords2, coords3, coords4 = vn.load_coords(self.SETTINGS_PATH)
         rec_key, deepl_key = vn.load_hotkeys(self.SETTINGS_PATH)
+        tag, toggled = vn.load_tag(self.SETTINGS_PATH)
         self.hotkeys.update({vn.RECORD_KEY: rec_key})
         self.hotkeys.update({vn.DEEPL_KEY: deepl_key})
         self.coords.update({vn.VN_COORD: coords1})
@@ -141,6 +142,33 @@ class App(customtkinter.CTk):
 
         hotkey_button = customtkinter.CTkButton(master=self.main_frame, text="Hotkey Settings", command=lambda: self.__load_hotkey_window("Record", "DeepL", VN))
         hotkey_button.pack(side=tkinter.BOTTOM, pady=20, padx=10)
+
+        def toggle_tag():
+            if checked.get():
+                tag_field.pack(side=tkinter.BOTTOM, pady=10)
+                tag, tmp = vn.load_tag(self.SETTINGS_PATH)
+                vn.tag = tag
+                tag_text.set(tag)
+            else:
+                vn.tag = ""
+                tag_field.pack_forget()
+                vn.save_tag(tag_text.get(), False, self.SETTINGS_PATH)
+
+        def on_tag_change(*args):
+            vn.tag = tag_text.get()
+            vn.save_tag(vn.tag, checked.get(), self.SETTINGS_PATH)
+
+        tag_frame = customtkinter.CTkFrame(master=self.main_frame, fg_color="transparent")
+        tag_frame.pack(side=tkinter.BOTTOM, pady=10, padx=10)
+        checked = customtkinter.BooleanVar()
+        tag_check = customtkinter.CTkCheckBox(master=tag_frame, text="Custom Tag", variable=checked, command=toggle_tag)
+        tag_check.pack(side=tkinter.TOP)
+        tag_text = customtkinter.StringVar()
+        tag_text.trace_add("write", on_tag_change)
+        tag_field = customtkinter.CTkEntry(master=tag_frame, placeholder_text="", placeholder_text_color="gray80", textvariable=tag_text)
+        checked.set(toggled)
+        if toggled:
+            toggle_tag()
 
         vn_frame = customtkinter.CTkFrame(master=self.main_frame)
         vn_frame.pack(side=tkinter.LEFT, padx=button_pad)

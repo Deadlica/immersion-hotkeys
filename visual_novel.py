@@ -7,6 +7,7 @@ import util
 
 coord_file = "visual_novel_coords.dat"
 key_file = "visual_novel_keys.dat"
+tag_file = "visual_novel_tag.dat"
 center_pos = ()
 vn_pos = ()
 audio_pos = ()
@@ -15,6 +16,7 @@ deepl_pos = ()
 record_id = None
 deepl_id = None
 delay = 1.0
+tag = ""
 RECORD_KEY = "record_key"
 DEEPL_KEY = "deepl_key"
 VN_COORD = "vn_coord"
@@ -23,11 +25,8 @@ STOP_COORD = "stop_coord"
 DEEPL_COORD = "deepl_coord"
 
 
-def save_img_and_audio(nsfw = False):
-    if nsfw:
-        pyautogui.hotkey('shift', 'F6')
-    else:
-        pyautogui.hotkey('F6')
+def save_img_and_audio():
+    pyautogui.hotkey('F6')
     time.sleep(delay)
     pyautogui.click(center_pos)
     time.sleep(2 * delay)
@@ -35,6 +34,10 @@ def save_img_and_audio(nsfw = False):
     time.sleep(0.2)
     pyautogui.click(audio_pos)
     pyautogui.moveTo(stop_pos)
+    global tag
+    if len(tag) > 0:
+        time.sleep(delay)
+        util.add_tag_to_lastest_card(tag)
 
 
 def click_deepl():
@@ -173,3 +176,30 @@ def remove_hotkeys():
     if deepl_id:
         keyboard.remove_hotkey(deepl_id)
         deepl_id = None
+
+
+def load_tag(settings_path: str):
+    tag_file_path = settings_path + os.sep + tag_file
+    util.ensure_settings_file_exist(tag_file_path, "False\n")
+
+    tag = ""
+    toggled = ""
+    with open(tag_file_path, "r") as file:
+        toggled = file.readline().strip()
+        tag = file.readline().strip()
+
+    if toggled == "True":
+        toggled = True
+    elif toggled == "False":
+        toggled = False
+    return tag, toggled
+
+
+def save_tag(tag: str, toggled: bool, settings_path: str):
+    tag_file_path = settings_path + os.sep + tag_file
+    util.ensure_settings_file_exist(tag_file_path, "False\n")
+
+    file = open(tag_file_path, "w")
+    file.write(str(toggled) + "\n")
+    file.write(tag)
+    file.close()
