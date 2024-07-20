@@ -15,10 +15,14 @@ stop_pos = ()
 deepl_pos = ()
 record_id = None
 deepl_id = None
+screenshot_key = ""
+audio_key = ""
 delay = 1.0
 tag = ""
 RECORD_KEY = "record_key"
 DEEPL_KEY = "deepl_key"
+SCREENSHOT_KEY = "screenshot_key"
+AUDIO_KEY = "audio_key"
 VN_COORD = "vn_coord"
 AUDIO_COORD = "audio_coord"
 STOP_COORD = "stop_coord"
@@ -26,11 +30,11 @@ DEEPL_COORD = "deepl_coord"
 
 
 def save_img_and_audio():
-    pyautogui.hotkey('F6')
+    pyautogui.hotkey(screenshot_key)
     time.sleep(delay)
     pyautogui.click(center_pos)
     time.sleep(2 * delay)
-    pyautogui.hotkey('F7')
+    pyautogui.hotkey(audio_key)
     time.sleep(0.2)
     pyautogui.click(audio_pos)
     pyautogui.moveTo(stop_pos)
@@ -78,14 +82,16 @@ def load_coords(settings_path: str):
 def load_hotkeys(settings_path: str):
     global record_id
     global deepl_id
+    global screenshot_key
+    global audio_key
     if record_id:
         keyboard.remove_hotkey(record_id)
     if deepl_id:
         keyboard.remove_hotkey(deepl_id)
     keys_file_path = settings_path + os.sep + key_file
-    util.ensure_settings_file_exist(keys_file_path, RECORD_KEY + "=r\n" + DEEPL_KEY + "=t")
+    util.ensure_settings_file_exist(keys_file_path, RECORD_KEY + "=r\n" + DEEPL_KEY + "=t\n" + SCREENSHOT_KEY + "=F6\n" + AUDIO_KEY + "=F7")
 
-    keys = ["", ""]
+    keys = ["", "", "", ""]
     with open(keys_file_path, "r") as file:
         for line in file:
             param, val = line.strip().split("=")
@@ -93,6 +99,12 @@ def load_hotkeys(settings_path: str):
                 keys[0] = val
             elif param == DEEPL_KEY:
                 keys[1] = val
+            elif param == SCREENSHOT_KEY:
+                keys[2] = val
+                screenshot_key = val
+            elif param == AUDIO_KEY:
+                keys[3] = val
+                audio_key = val
 
     record_id = keyboard.add_hotkey(keys[0], save_img_and_audio)
     deepl_id = keyboard.add_hotkey(keys[1], click_deepl)
@@ -139,12 +151,14 @@ def save_coords(coords: dict, settings_path: str):
 def save_hotkeys(hotkeys: dict, settings_path: str):
     global record_id
     global deepl_id
+    global screenshot_key
+    global audio_key
     if record_id:
         keyboard.remove_hotkey(record_id)
     if deepl_id:
         keyboard.remove_hotkey(deepl_id)
     keys_file_path = settings_path + os.sep + key_file
-    util.ensure_settings_file_exist(keys_file_path, RECORD_KEY + "=r\n" + DEEPL_KEY + "=t")
+    util.ensure_settings_file_exist(keys_file_path, RECORD_KEY + "=r\n" + DEEPL_KEY + "=t\n" + SCREENSHOT_KEY + "=F6\n" + AUDIO_KEY + "=F7")
     content = {}
     with open(keys_file_path, "r") as file:
         for line in file:
@@ -164,7 +178,12 @@ def save_hotkeys(hotkeys: dict, settings_path: str):
             record_id = keyboard.add_hotkey(val, save_img_and_audio)
         elif key == DEEPL_KEY:
             deepl_id = keyboard.add_hotkey(val, click_deepl)
+        elif key == SCREENSHOT_KEY:
+            screenshot_key = val
+        elif key == AUDIO_KEY:
+            audio_key = val
     file.close()
+
 
 
 def remove_hotkeys():

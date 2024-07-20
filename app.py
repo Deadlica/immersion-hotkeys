@@ -5,6 +5,10 @@ import asbplayer
 import visual_novel as vn
 import util
 import psutil
+import threading
+import subprocess
+import time
+import re
 
 
 customtkinter.set_appearance_mode("dark")
@@ -14,14 +18,26 @@ ASBPLAYER = "ASBPLAYER"
 VN = "VISUAL NOVEL"
 
 class App(customtkinter.CTk):
-    def __init__(self, title: str, width: int, height: int, icon_path: str, settings_path: str = ".AJATT-Hotkeys"):
+    def __init__(self, title: str, width: int, height: int, icon_path: str, platform: str, settings_path: str = ".AJATT-Hotkeys"):
         super().__init__()
+
+        if platform == "Windows":
+            self.sharex_name = "ShareX.exe"
+        elif platform == "Mac": # dunno what its called in Mac
+            self.sharex_name = "ShareX.mc"
+        elif platform == "Linux": # dunno what its called in Linux
+            self.sharex_name = "ShareX"
 
         self.text_to_setting = {
             "Subtitles": asbplayer.SUBTITLE_KEY,
             "DeepL": asbplayer.DEEPL_KEY,
-            "Record": vn.RECORD_KEY
+            "Record": vn.RECORD_KEY,
+            "Screenshot": vn.SCREENSHOT_KEY,
+            "Audio": vn.AUDIO_KEY
         }
+
+        self.pid = -1
+        self.hotkey_window = None
 
         self.title(title)
         self.resizable(False, False)
@@ -54,6 +70,13 @@ class App(customtkinter.CTk):
         asbplayer.remove_hotkeys()
         vn.remove_hotkeys()
 
+        self.asb_mode = False
+        self.vn_mode = False
+
+        self.process_search = threading.Event()
+        self.thread = threading.Thread(target=self.__worker, daemon=True)
+        self.thread.start()
+
         self.hotkeys = {}
         self.coords = {}
 
@@ -69,6 +92,7 @@ class App(customtkinter.CTk):
 
     def __load_asbplayer_frame(self):
         self.__clear_frame()
+        self.asb_mode = True
         coords1, coords2, coords3 = asbplayer.load_coords(self.SETTINGS_PATH)
         sub_key, deepl_key = asbplayer.load_hotkeys(self.SETTINGS_PATH)
         self.hotkeys.update({asbplayer.SUBTITLE_KEY: sub_key})
@@ -114,19 +138,29 @@ class App(customtkinter.CTk):
 
 
     def __load_vn_frame(self):
-        if not self.__is_process_running("ShareX.exe"):
+        if self.pid < 0:
+            self.__show_custom_error("ShareX Error", "Please ensure ShareX is started!")
+            return
+        try:
+            process = psutil.Process(self.pid)
+        except:
+            return
+        if not process or process.name() != self.sharex_name:
             self.__show_custom_error("ShareX Error", "Please ensure ShareX is started!")
             return
         self.__clear_frame()
+        self.vn_mode = True
         coords1, coords2, coords3, coords4 = vn.load_coords(self.SETTINGS_PATH)
-        rec_key, deepl_key = vn.load_hotkeys(self.SETTINGS_PATH)
+        rec_key, deepl_key, screenshot_key, audio_key = vn.load_hotkeys(self.SETTINGS_PATH)
         tag, toggled = vn.load_tag(self.SETTINGS_PATH)
         self.hotkeys.update({vn.RECORD_KEY: rec_key})
         self.hotkeys.update({vn.DEEPL_KEY: deepl_key})
+        self.hotkeys.update({vn.SCREENSHOT_KEY: screenshot_key})
+        self.hotkeys.update({vn.AUDIO_KEY: audio_key})
         self.coords.update({vn.VN_COORD: coords1})
         self.coords.update({vn.AUDIO_COORD: coords2})
         self.coords.update({vn.STOP_COORD: coords3})
-        self.coords.update({asbplayer.DEEPL_COORD: coords4})
+        self.coords.update({vn.DEEPL_COORD: coords4})
         coords1 = coords1.split(",")
         coords2 = coords2.split(",")
         coords3 = coords3.split(",")
@@ -140,7 +174,7 @@ class App(customtkinter.CTk):
         back_button = customtkinter.CTkButton(master=self.main_frame, text="Back", command=self.__load_main_frame)
         back_button.pack(side=tkinter.BOTTOM, pady=20, padx=10)
 
-        hotkey_button = customtkinter.CTkButton(master=self.main_frame, text="Hotkey Settings", command=lambda: self.__load_hotkey_window("Record", "DeepL", VN))
+        hotkey_button = customtkinter.CTkButton(master=self.main_frame, text="Hotkey Settings", command=lambda: self.__load_hotkey_window("Record", "DeepL", VN, "Screenshot", "Audio"))
         hotkey_button.pack(side=tkinter.BOTTOM, pady=20, padx=10)
 
         def toggle_tag():
@@ -199,13 +233,16 @@ class App(customtkinter.CTk):
         deepl_label.pack()
 
 
-    def __load_hotkey_window(self, button1_text: str, button2_text: str, mode: str):
-        hotkey_window = customtkinter.CTkToplevel(self)
+    def __load_hotkey_window(self, button1_text: str, button2_text: str, mode: str, button3_text: str = "", button4_text: str = ""):
+        self.hotkey_window = customtkinter.CTkToplevel(self)
         asbplayer.remove_hotkeys()
         vn.remove_hotkeys()
         hotkeys = self.hotkeys.copy()
         width = int(self.WIDTH / 2)
-        height = int(self.HEIGHT / 2)
+        if mode == ASBPLAYER:
+            height = int(self.HEIGHT / 2)
+        elif mode == VN:
+            height = int(self.HEIGHT / 1.7)
         parent_x = self.winfo_x()
         parent_y = self.winfo_y()
         parent_y = self.winfo_y()
@@ -213,15 +250,15 @@ class App(customtkinter.CTk):
         parent_height = self.winfo_height()
         x = parent_x + (parent_width // 2) - (width // 2)
         y = parent_y + (parent_height // 2) - (height // 2)
-        hotkey_window.geometry(f"{width}x{height}+{x}+{y}")
+        self.hotkey_window.geometry(f"{width}x{height}+{x}+{y}")
 
-        hotkey_window.attributes("-topmost", True)
-        hotkey_window.overrideredirect(True)
-        hotkey_window.grab_set()
+        self.hotkey_window.attributes("-topmost", True)
+        self.hotkey_window.overrideredirect(True)
+        self.hotkey_window.grab_set()
 
         bw = 4
 
-        border_frame = customtkinter.CTkFrame(hotkey_window, border_width=bw, border_color="gray")
+        border_frame = customtkinter.CTkFrame(self.hotkey_window, border_width=bw, border_color="gray")
         border_frame.pack(fill="both", expand=True)
 
         title_bar = customtkinter.CTkFrame(master=border_frame, height=30)
@@ -231,9 +268,9 @@ class App(customtkinter.CTk):
 
         bottom_frame = customtkinter.CTkFrame(master=border_frame, fg_color="transparent")
         bottom_frame.pack(side=tkinter.BOTTOM, pady=bw, padx=bw)
-        ok_button = customtkinter.CTkButton(master=bottom_frame, text="Ok", command=lambda: self.__save_hotkeys(hotkey_window, hotkeys, mode))
+        ok_button = customtkinter.CTkButton(master=bottom_frame, text="Ok", command=lambda: self.__save_hotkeys(self.hotkey_window, hotkeys, mode))
         ok_button.pack(side=tkinter.LEFT, pady=20, padx=10)
-        cancel_button = customtkinter.CTkButton(master=bottom_frame, text="Cancel", command=lambda: self.__save_hotkeys(hotkey_window, self.hotkeys, mode))
+        cancel_button = customtkinter.CTkButton(master=bottom_frame, text="Cancel", command=lambda: self.__save_hotkeys(self.hotkey_window, self.hotkeys, mode))
         cancel_button.pack(side=tkinter.LEFT, pady=20, padx=10)
 
         hotkey_frame = customtkinter.CTkFrame(master=border_frame, fg_color="transparent")
@@ -246,10 +283,20 @@ class App(customtkinter.CTk):
         if mode == VN:
             button1_id = vn.RECORD_KEY
             button2_id = vn.DEEPL_KEY
-        button1 = customtkinter.CTkButton(master=hotkey_frame, text=button1_text + f" ({self.hotkeys[button1_id]})", command=lambda: self.__register_hotkey(hotkey_window, button1, button1_text, hotkeys))
+            button3_id = vn.SCREENSHOT_KEY
+            button4_id = vn.AUDIO_KEY
+        button1 = customtkinter.CTkButton(master=hotkey_frame, text=button1_text + f" ({self.hotkeys[button1_id]})", command=lambda: self.__register_hotkey(self.hotkey_window, button1, button1_text, hotkeys))
         button1.pack(side=tkinter.LEFT, pady=20, padx=10)
-        button2 = customtkinter.CTkButton(master=hotkey_frame, text=button2_text + f" ({self.hotkeys[button2_id]})", command=lambda: self.__register_hotkey(hotkey_window, button2, button2_text, hotkeys))
+        button2 = customtkinter.CTkButton(master=hotkey_frame, text=button2_text + f" ({self.hotkeys[button2_id]})", command=lambda: self.__register_hotkey(self.hotkey_window, button2, button2_text, hotkeys))
         button2.pack(side=tkinter.LEFT, pady=20, padx=10)
+
+        if mode == VN:
+            sharex_hotkey_frame = customtkinter.CTkFrame(master=border_frame, fg_color="transparent")
+            sharex_hotkey_frame.pack(side=tkinter.TOP, pady=bw, padx=bw)
+            button3 = customtkinter.CTkButton(master=sharex_hotkey_frame, text="Screenshot" + f" ({self.hotkeys[button3_id]})", command=lambda: self.__register_hotkey(self.hotkey_window, button3, button3_text, hotkeys))
+            button3.pack(side=tkinter.LEFT, pady=0, padx=10)
+            button4 = customtkinter.CTkButton(master=sharex_hotkey_frame, text="Audio" + f" ({self.hotkeys[button4_id]})", command=lambda: self.__register_hotkey(self.hotkey_window, button4, button4_text, hotkeys))
+            button4.pack(side=tkinter.LEFT, pady=0, padx=10)
 
 
     def __register_hotkey(self, window: customtkinter.CTkToplevel, button: customtkinter.CTkButton, label: str, hotkeys: dict):
@@ -282,13 +329,28 @@ class App(customtkinter.CTk):
             asbplayer.save_coords(self.coords, self.SETTINGS_PATH)
         elif mode == VN:
             vn.save_coords(self.coords, self.SETTINGS_PATH)
+    
+
+    def __worker(self):
+        while True:
+            self.pid = self.__get_process_id(self.sharex_name)
+            if self.vn_mode and self.pid == -1:
+                if self.hotkey_window:
+                    self.after(0, self.hotkey_window.destroy)
+                    self.hotkey_window = None
+                self.after(0, self.__load_main_frame)
+                self.after(0, lambda: self.__show_custom_error("ShareX Error", "ShareX has been closed!\n\n Please start ShareX to use 'Visual Novel' mode,"))
+            time.sleep(1)
 
 
-    def __is_process_running(self, process_name: str):
-        for process in psutil.process_iter(["pid", "name"]):
-            if process.info["name"] == process_name:
-                return True
-        return False
+    def __get_process_id(self, process_name: str):
+        progs = subprocess.run(['tasklist'], capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW).stdout
+        pattern = re.compile(rf'{process_name}\s+(\d+)\s+')
+        match = pattern.search(progs)
+        if match:
+            return int(match.group(1))
+        else:
+            return -1
 
 
     def __show_custom_error(self, title, message):
