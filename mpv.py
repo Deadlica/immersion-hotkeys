@@ -5,96 +5,107 @@ import os
 import util
 
 
-coord_file = ".asbplayer_coords.dat"
-key_file = ".asbplayer_keys.dat"
+coord_file = ".mpv_coords.dat"
+key_file = ".mpv_keys.dat"
 center_pos = ()
-subtitle_pos = ()
-focus_pos = ()
+mpv_pos = ()
 deepl_pos = ()
+mine_id = None
 subtitle_id = None
 deepl_id = None
 delay = 0.1
+MINE_KEY = "mine_key"
 SUBTITLE_KEY = "subtitle_key"
 DEEPL_KEY = "deepl_key"
-SUBTITLE_COORD = "subtitle_coord"
-FOCUS_COORD = "focus_coord"
+MPV_COORD = "mpv_coord"
 DEEPL_COORD = "deepl_coord"
 
 
-def click_subtitle():
-    pyautogui.moveTo(subtitle_pos)
+def mine():
+    start_pos = pyautogui.position()
+    pyautogui.moveTo(mpv_pos)
     time.sleep(delay)
     pyautogui.click()
-    pyautogui.moveTo(center_pos)
+    pyautogui.hotkey('ctrl', 'm')
+    time.sleep(delay)
+    pyautogui.moveTo(start_pos)
+
+
+def click_subtitle():
+    pyautogui.moveTo(mpv_pos)
+    time.sleep(delay)
+    pyautogui.click()
+    pyautogui.hotkey('v')
 
 
 def click_deepl():
     global deepl_pos
-    global focus_pos
+    global mpv_pos
     global center_pos
     pyautogui.click(deepl_pos)
     pyautogui.hotkey('ctrl', 'v')
-    pyautogui.moveTo(focus_pos)
+    pyautogui.moveTo(mpv_pos)
     time.sleep(delay)
     pyautogui.click()
     pyautogui.moveTo(center_pos)
 
 
 def load_coords(settings_path: str):
-    global subtitle_pos
     global deepl_pos
-    global focus_pos
+    global mpv_pos
     coords_file_path = settings_path + os.sep + coord_file
-    util.ensure_settings_file_exist(coords_file_path, "subtitle_coord=0,0\nfocus_coord=0,0\ndeepl_coord=0,0")
+    util.ensure_settings_file_exist(coords_file_path, MPV_COORD + "=0,0\n" + DEEPL_COORD + "=0,0")
 
-    coords = ["", "", ""]
+    coords = ["", ""]
     with open(coords_file_path, "r") as file:
         for line in file:
             param, val = line.strip().split("=")
             val = val.split(",")
-            if param == "subtitle_coord":
+            if param == "mpv_coord":
                 coords[0] = val[0] + "," + val[1]
-                subtitle_pos = (int(val[0]), int(val[1]))
-            elif param == "focus_coord":
-                coords[1] = val[0] + "," + val[1]
-                focus_pos = (int(val[0]), int(val[1]))
+                mpv_pos = (int(val[0]), int(val[1]))
             elif param == "deepl_coord":
-                coords[2] = val[0] + "," + val[1]
+                coords[1] = val[0] + "," + val[1]
                 deepl_pos = (int(val[0]), int(val[1]))
 
     return coords
 
 
 def load_hotkeys(settings_path: str):
+    global mine_id
     global subtitle_id
     global deepl_id
+    if mine_id:
+        keyboard.remove_hotkey(mine_id)
     if subtitle_id:
         keyboard.remove_hotkey(subtitle_id)
     if deepl_id:
         keyboard.remove_hotkey(deepl_id)
     keys_file_path = settings_path + os.sep + key_file
-    util.ensure_settings_file_exist(keys_file_path, SUBTITLE_KEY + "=s\n" + DEEPL_KEY + "=t")
+    util.ensure_settings_file_exist(keys_file_path, MINE_KEY + "=m\n" + SUBTITLE_KEY + "=s\n" + DEEPL_KEY + "=t")
 
-    keys = ["", ""]
+    keys = ["", "", ""]
     with open(keys_file_path, "r") as file:
         for line in file:
             param, val = line.strip().split("=")
-            if param == SUBTITLE_KEY:
+            if param == MINE_KEY:
                 keys[0] = val
-            elif param == DEEPL_KEY:
+            elif param == SUBTITLE_KEY:
                 keys[1] = val
+            elif param == DEEPL_KEY:
+                keys[2] = val
 
-    subtitle_id = keyboard.add_hotkey(keys[0], click_subtitle)
-    deepl_id = keyboard.add_hotkey(keys[1], click_deepl)
+    mine_id = keyboard.add_hotkey(keys[0], mine)
+    subtitle_id = keyboard.add_hotkey(keys[1], click_subtitle)
+    deepl_id = keyboard.add_hotkey(keys[2], click_deepl)
     return keys
 
 
 def save_coords(coords: dict, settings_path: str):
-    global subtitle_pos
-    global focus_pos
+    global mpv_pos
     global deepl_pos
     coords_file_path = settings_path + os.sep + coord_file
-    util.ensure_settings_file_exist(coords_file_path, "subtitle_coord=0,0\nfocus_coord=0,0\ndeepl_coord=0,0")
+    util.ensure_settings_file_exist(coords_file_path, MPV_COORD + "=0,0\n" + DEEPL_COORD + "=0,0")
     content = {}
     with open(coords_file_path, "r") as file:
         for line in file:
@@ -110,12 +121,9 @@ def save_coords(coords: dict, settings_path: str):
         file.write(key + "=" + val)
         if i < len(content) - 1:
             file.write("\n")
-        if key == SUBTITLE_COORD:
+        if key == MPV_COORD:
             c = val.split(",")
-            subtitle_pos = (int(c[0]), int(c[1]))
-        elif key == FOCUS_COORD:
-            c = val.split(",")
-            focus_pos = (int(c[0]), int(c[1]))
+            mpv_pos = (int(c[0]), int(c[1]))
         elif key == DEEPL_COORD:
             c = val.split(",")
             deepl_pos = (int(c[0]), int(c[1]))
@@ -123,14 +131,17 @@ def save_coords(coords: dict, settings_path: str):
 
 
 def save_hotkeys(hotkeys: dict, settings_path: str):
+    global mine_id
     global subtitle_id
     global deepl_id
+    if mine_id:
+        keyboard.remove_hotkey(mine_id)
     if subtitle_id:
         keyboard.remove_hotkey(subtitle_id)
     if deepl_id:
         keyboard.remove_hotkey(deepl_id)
     keys_file_path = settings_path + os.sep + key_file
-    util.ensure_settings_file_exist(keys_file_path, SUBTITLE_KEY + "=s\n" + DEEPL_KEY + "=t")
+    util.ensure_settings_file_exist(keys_file_path, MINE_KEY + "=m\n" + SUBTITLE_KEY + "=s\n" + DEEPL_KEY + "=t")
     content = {}
     with open(keys_file_path, "r") as file:
         for line in file:
@@ -146,6 +157,8 @@ def save_hotkeys(hotkeys: dict, settings_path: str):
         file.write(key + "=" + val)
         if i < len(content) - 1:
             file.write("\n")
+        if key == MINE_KEY:
+            mine_id = keyboard.add_hotkey(val, mine)
         if key == SUBTITLE_KEY:
             subtitle_id = keyboard.add_hotkey(val, click_subtitle)
         elif key == DEEPL_KEY:
@@ -154,8 +167,12 @@ def save_hotkeys(hotkeys: dict, settings_path: str):
 
 
 def remove_hotkeys():
+    global mine_id
     global subtitle_id
     global deepl_id
+    if mine_id:
+        keyboard.remove_hotkey(mine_id)
+        mine_id = None
     if subtitle_id:
         keyboard.remove_hotkey(subtitle_id)
         subtitle_id = None

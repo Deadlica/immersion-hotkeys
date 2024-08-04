@@ -5,9 +5,9 @@ import os
 import util
 
 
-coord_file = "visual_novel_coords.dat"
-key_file = "visual_novel_keys.dat"
-tag_file = "visual_novel_tag.dat"
+coord_file = ".visual_novel_coords.dat"
+key_file = ".visual_novel_keys.dat"
+tag_file = ".visual_novel_tag.dat"
 center_pos = ()
 vn_pos = ()
 audio_pos = ()

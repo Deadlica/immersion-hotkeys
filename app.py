@@ -3,6 +3,7 @@ import tkinter.messagebox
 import customtkinter
 import asbplayer
 import visual_novel as vn
+import mpv
 import util
 import psutil
 import threading
@@ -15,6 +16,7 @@ customtkinter.set_appearance_mode("dark")
 customtkinter.set_default_color_theme("dark-blue")
 
 ASBPLAYER = "ASBPLAYER"
+MPV = "MPV"
 VN = "VISUAL NOVEL"
 
 class App(customtkinter.CTk):
@@ -23,14 +25,15 @@ class App(customtkinter.CTk):
 
         if platform == "Windows":
             self.sharex_name = "ShareX.exe"
-        elif platform == "Mac": # dunno what its called in Mac
-            self.sharex_name = "ShareX.mc"
-        elif platform == "Linux": # dunno what its called in Linux
+        elif platform == "Mac":
+            self.sharex_name = "ShareX"
+        elif platform == "Linux":
             self.sharex_name = "ShareX"
 
         self.text_to_setting = {
             "Subtitles": asbplayer.SUBTITLE_KEY,
             "DeepL": asbplayer.DEEPL_KEY,
+            "Mine": mpv.MINE_KEY,
             "Record": vn.RECORD_KEY,
             "Screenshot": vn.SCREENSHOT_KEY,
             "Audio": vn.AUDIO_KEY
@@ -68,9 +71,11 @@ class App(customtkinter.CTk):
     def __load_main_frame(self):
         self.__clear_frame()
         asbplayer.remove_hotkeys()
+        mpv.remove_hotkeys()
         vn.remove_hotkeys()
 
         self.asb_mode = False
+        self.mpv_mode = False
         self.vn_mode = False
 
         self.process_search = threading.Event()
@@ -84,10 +89,13 @@ class App(customtkinter.CTk):
         self.label.pack(pady=20, padx=10)
 
         self.asbplayer_button = customtkinter.CTkButton(master=self.main_frame, text="ASBPlayer", command=self.__load_asbplayer_frame)
-        self.asbplayer_button.pack(pady=40, padx=10)
+        self.asbplayer_button.pack(pady=20, padx=10)
+
+        self.mpv_button = customtkinter.CTkButton(master=self.main_frame, text="MPV", command=self.__load_mpv_frame)
+        self.mpv_button.pack(pady=20, padx=10)
 
         self.vn_button = customtkinter.CTkButton(master=self.main_frame, text="Visual Novel", command=self.__load_vn_frame)
-        self.vn_button.pack(pady=40, padx=10)
+        self.vn_button.pack(pady=20, padx=10)
 
 
     def __load_asbplayer_frame(self):
@@ -134,6 +142,45 @@ class App(customtkinter.CTk):
         deepl_button = customtkinter.CTkButton(master=deepl_frame, text="DeepL location", command=lambda: self.__register_coords(asbplayer.DEEPL_COORD, deepl_label, ASBPLAYER))
         deepl_button.pack()
         deepl_label = customtkinter.CTkLabel(master=deepl_frame, text=f"(x: {coords3[0]}, y: {coords3[1]})")
+        deepl_label.pack()
+
+
+    def __load_mpv_frame(self):
+        self.__clear_frame()
+        self.mpv_mode = True
+        coords1, coords2 = mpv.load_coords(self.SETTINGS_PATH)
+        mine_key, sub_key, deepl_key = mpv.load_hotkeys(self.SETTINGS_PATH)
+        self.hotkeys.update({mpv.MINE_KEY: mine_key})
+        self.hotkeys.update({mpv.SUBTITLE_KEY: sub_key})
+        self.hotkeys.update({mpv.DEEPL_KEY: deepl_key})
+        self.coords.update({mpv.MPV_COORD: coords1})
+        self.coords.update({mpv.DEEPL_COORD: coords2})
+        coords1 = coords1.split(",")
+        coords2 = coords2.split(",")
+
+        label = customtkinter.CTkLabel(master=self.main_frame, text="MPV")
+        label.pack(pady=12, padx=10)
+
+        button_pad = 70
+
+        back_button = customtkinter.CTkButton(master=self.main_frame, text="Back", command=self.__load_main_frame)
+        back_button.pack(side=tkinter.BOTTOM, pady=20, padx=10)
+
+        hotkey_button = customtkinter.CTkButton(master=self.main_frame, text="Hotkey Settings", command=lambda: self.__load_hotkey_window("Subtitles", "DeepL", MPV, "Mine"))
+        hotkey_button.pack(side=tkinter.BOTTOM, pady=20, padx=10)
+
+        mpv_frame = customtkinter.CTkFrame(master=self.main_frame)
+        mpv_frame.pack(side=tkinter.LEFT, padx=button_pad)
+        mpv_button = customtkinter.CTkButton(master=mpv_frame, text="MPV location", command=lambda: self.__register_coords(mpv.MPV_COORD, mpv_label, MPV))
+        mpv_button.pack()
+        mpv_label = customtkinter.CTkLabel(master=mpv_frame, text=f"(x: {coords2[0]}, y: {coords2[1]})")
+        mpv_label.pack()
+
+        deepl_frame = customtkinter.CTkFrame(master=self.main_frame)
+        deepl_frame.pack(side=tkinter.LEFT, padx=button_pad)
+        deepl_button = customtkinter.CTkButton(master=deepl_frame, text="DeepL location", command=lambda: self.__register_coords(mpv.DEEPL_COORD, deepl_label, MPV))
+        deepl_button.pack()
+        deepl_label = customtkinter.CTkLabel(master=deepl_frame, text=f"(x: {coords2[0]}, y: {coords2[1]})")
         deepl_label.pack()
 
 
@@ -236,12 +283,13 @@ class App(customtkinter.CTk):
     def __load_hotkey_window(self, button1_text: str, button2_text: str, mode: str, button3_text: str = "", button4_text: str = ""):
         self.hotkey_window = customtkinter.CTkToplevel(self)
         asbplayer.remove_hotkeys()
+        mpv.remove_hotkeys()
         vn.remove_hotkeys()
         hotkeys = self.hotkeys.copy()
         width = int(self.WIDTH / 2)
         if mode == ASBPLAYER:
             height = int(self.HEIGHT / 2)
-        elif mode == VN:
+        elif mode == VN or mode == MPV:
             height = int(self.HEIGHT / 1.7)
         parent_x = self.winfo_x()
         parent_y = self.winfo_y()
@@ -280,7 +328,11 @@ class App(customtkinter.CTk):
         if mode == ASBPLAYER:
             button1_id = asbplayer.SUBTITLE_KEY
             button2_id = asbplayer.DEEPL_KEY
-        if mode == VN:
+        elif mode == MPV:
+            button1_id = mpv.SUBTITLE_KEY
+            button2_id = mpv.DEEPL_KEY
+            button3_id = mpv.MINE_KEY
+        elif mode == VN:
             button1_id = vn.RECORD_KEY
             button2_id = vn.DEEPL_KEY
             button3_id = vn.SCREENSHOT_KEY
@@ -290,7 +342,12 @@ class App(customtkinter.CTk):
         button2 = customtkinter.CTkButton(master=hotkey_frame, text=button2_text + f" ({self.hotkeys[button2_id]})", command=lambda: self.__register_hotkey(self.hotkey_window, button2, button2_text, hotkeys))
         button2.pack(side=tkinter.LEFT, pady=20, padx=10)
 
-        if mode == VN:
+        if mode == MPV:
+            deepl_hotkey_frame = customtkinter.CTkFrame(master=border_frame, fg_color="transparent")
+            deepl_hotkey_frame.pack(side=tkinter.TOP, pady=bw, padx=bw)
+            button3 = customtkinter.CTkButton(master=deepl_hotkey_frame, text="Mine" + f" ({self.hotkeys[button3_id]})", command=lambda: self.__register_hotkey(self.hotkey_window, button3, button3_text, hotkeys))
+            button3.pack(side=tkinter.LEFT, pady=0, padx=10)
+        elif mode == VN:
             sharex_hotkey_frame = customtkinter.CTkFrame(master=border_frame, fg_color="transparent")
             sharex_hotkey_frame.pack(side=tkinter.TOP, pady=bw, padx=bw)
             button3 = customtkinter.CTkButton(master=sharex_hotkey_frame, text="Screenshot" + f" ({self.hotkeys[button3_id]})", command=lambda: self.__register_hotkey(self.hotkey_window, button3, button3_text, hotkeys))
@@ -315,6 +372,8 @@ class App(customtkinter.CTk):
         self.hotkeys = hotkeys
         if mode == ASBPLAYER:
             asbplayer.save_hotkeys(self.hotkeys, self.SETTINGS_PATH)
+        elif mode == MPV:
+            mpv.save_hotkeys(self.hotkeys, self.SETTINGS_PATH)
         elif mode == VN:
             vn.save_hotkeys(self.hotkeys, self.SETTINGS_PATH)
         window.destroy()
@@ -327,6 +386,8 @@ class App(customtkinter.CTk):
         self.coords[button] = coord[0] + "," + coord[1]
         if mode == ASBPLAYER:
             asbplayer.save_coords(self.coords, self.SETTINGS_PATH)
+        elif mode == MPV:
+            mpv.save_coords(self.coords, self.SETTINGS_PATH)
         elif mode == VN:
             vn.save_coords(self.coords, self.SETTINGS_PATH)
     
