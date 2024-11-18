@@ -53,6 +53,7 @@ class App(customtkinter.CTk):
         y = int(screen_height / 2 - self.HEIGHT / 2)
         asbplayer.center_pos = (x + int(self.WIDTH / 2), y + int(self.HEIGHT / 2))
         vn.center_pos = asbplayer.center_pos
+        mpv.center_pos = vn.center_pos
         self.geometry(f"{width}x{height}+{x}+{y}")
 
         self.ICON_PATH = icon_path

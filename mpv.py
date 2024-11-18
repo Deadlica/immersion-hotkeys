@@ -4,7 +4,6 @@ import time
 import os
 import util
 
-
 coord_file = ".mpv_coords.dat"
 key_file = ".mpv_keys.dat"
 center_pos = ()
@@ -39,15 +38,10 @@ def click_subtitle():
 
 
 def click_deepl():
-    global deepl_pos
-    global mpv_pos
-    global center_pos
+    start_pos = pyautogui.position()
     pyautogui.click(deepl_pos)
     pyautogui.hotkey('ctrl', 'v')
-    pyautogui.moveTo(mpv_pos)
-    time.sleep(delay)
-    pyautogui.click()
-    pyautogui.moveTo(center_pos)
+    pyautogui.moveTo(start_pos)
 
 
 def load_coords(settings_path: str):

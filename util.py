@@ -3,6 +3,7 @@ from pynput import mouse
 import os
 import requests
 import json
+import pyautogui
 
 
 anki_url = "http://127.0.0.1:8765"
@@ -64,7 +65,8 @@ def get_click_position():
 
     def on_click(x, y, button, pressed):
         if pressed and button == mouse.Button.left:
-            position.append((x, y))
+            mouse_pos = pyautogui.position()
+            position.append((mouse_pos.x, mouse_pos.y))
             return False
 
     with mouse.Listener(on_click=on_click) as listener:
