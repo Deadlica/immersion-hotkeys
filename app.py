@@ -15,6 +15,8 @@ import re
 customtkinter.set_appearance_mode("dark")
 customtkinter.set_default_color_theme("dark-blue")
 
+POSITION_FILE = ".window_position.dat"
+
 ASBPLAYER = "ASBPLAYER"
 MPV = "MPV"
 VN = "VISUAL NOVEL"
@@ -55,6 +57,7 @@ class App(customtkinter.CTk):
         vn.center_pos = asbplayer.center_pos
         mpv.center_pos = vn.center_pos
         self.geometry(f"{width}x{height}+{x}+{y}")
+        self.__load_position()
 
         self.ICON_PATH = icon_path
         self.iconbitmap(default=icon_path)
@@ -438,6 +441,25 @@ class App(customtkinter.CTk):
 
         button = customtkinter.CTkButton(master=error_window, text="OK", command=error_window.destroy)
         button.pack(pady=10)
+
+
+    def __save_position(self):
+        with open(self.SETTINGS_PATH + "/" + POSITION_FILE, "w") as file:
+            file.write(f"{self.winfo_x()},{self.winfo_y()}\n")
+
+
+    def __load_position(self):
+        try:
+            with open(self.SETTINGS_PATH + "/" + POSITION_FILE, "r") as file:
+                x, y = map(int, file.readline().strip().split(","))
+                self.geometry(f"+{x}+{y}")
+        except (FileNotFoundError, ValueError):
+            pass
+
+
+    def destroy(self):
+        self.__save_position()
+        super().destroy()
     
 
     def start(self):
